@@ -143,6 +143,7 @@ Recommended script behavior:
 - Stay silent on success; do not send “document updated” messages.
 - On failure, print a short error and log path.
 - Run `stars-to-kbs run --agent hermes --resume`.
+- If one run may take more than a few minutes, start the real job through `tmux` or another background runner so the cron script itself does not time out.
 - Keep the note as the final index only; do not append update logs.
 
 ## Commands
