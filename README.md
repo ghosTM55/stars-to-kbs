@@ -1,89 +1,21 @@
 # stars-to-kbs
 
-Local-first GitHub Stars organizer for a personal Knowledge Base System (KBS).
+把 GitHub Stars 自动整理成个人知识库 Markdown 笔记。
 
-`stars-to-kbs` fetches your GitHub starred repositories, asks a configurable AI CLI (`hermes`, `codex`, or `claude`) to organize and summarize them, then writes an Obsidian-friendly Markdown note to your configured KBS path.
+`stars-to-kbs` 会拉取你的 starred repositories，调用本机已登录的 AI CLI（Hermes / Codex / Claude）做分类和总结，然后写入 Obsidian 或其他 KBS 目录。
 
-> 中文说明：see [README.zh-CN.md](README.zh-CN.md).
+[English](README.en.md)
 
-## Why this exists
+## 特点
 
-This project is inspired by [`amirhmoradi/starred`](https://github.com/amirhmoradi/starred), but takes a different approach:
+- GitHub Stars 自动分页拉取
+- 支持 `hermes` / `codex` / `claude` / `none`
+- 不直接集成 LLM API Key
+- 配置文件放在用户目录，适合公开仓库
+- 分批总结 + 全局合并 + 完整性校验
+- 输出 Obsidian-friendly Markdown
 
-- It does **not** call OpenAI, Anthropic, or other LLM provider APIs directly.
-- It shells out to already-authenticated local AI CLIs instead.
-- It keeps private configuration outside the repository.
-- It writes a single Markdown note that can be dropped into Obsidian or another personal KBS.
-
-This is useful when you already pay for tools such as Codex, Claude, or Hermes and want to avoid maintaining separate API keys or API-billed summarization pipelines.
-
-## Current status and scale behavior
-
-The pipeline is now designed for larger star collections by separating batch summarization from global consolidation:
-
-```text
-fetch -> summarize-batches -> merge-summaries -> validate -> write-note
-```
-
-Repositories are first summarized in batches controlled by `batch_size`. The `merge` stage then asks the selected AI CLI to consolidate all batch outputs into one global taxonomy, and the `validate` stage checks that every fetched `full_name` appears exactly once in the final Markdown.
-
-Recommended large-collection settings:
-
-```toml
-[agent]
-batch_size = 50
-language = "zh-CN"
-
-[github]
-include_readme = false
-max_repos = 0
-```
-
-For 400+ or 1000+ repositories, this is much better than simple batch concatenation, but the final quality still depends on the selected AI CLI's context window and output reliability. If validation fails, inspect `.work/combined-summary.md`, lower `batch_size`, or rerun with `--resume` after fixing the failed batch.
-
-## Privacy and security model
-
-Committed files are intended to be safe for a public repository. Private material should stay outside git.
-
-The default private config path is:
-
-```text
-$HOME/.config/stars-to-kbs/config.toml
-```
-
-Ignored local files include:
-
-- `.env` — optional local secrets;
-- `config.toml` and `*.local.toml` — local config copies;
-- `.cache/` — fetched GitHub star data;
-- `.work/` — prompts and AI CLI outputs;
-- `output/` and `agent-output/` — generated local notes or artifacts;
-- `.venv/`, `dist/`, test/lint caches.
-
-Important privacy notes:
-
-- GitHub tokens are read from the configured environment variable or from `gh auth token`.
-- This project does not store LLM provider API keys.
-- Using `hermes`, `codex`, or `claude` may still send repository metadata to that tool's backend according to that tool's own account, privacy, and retention settings.
-- Setting `include_readme = true` sends more repository text to the selected agent and makes runs slower.
-- Do not commit generated cache/work/output files if your stars reveal private research interests.
-
-## Requirements
-
-- Python `>= 3.11`
-- GitHub access via one of:
-  - `GH_TOKEN` or another configured token environment variable; or
-  - the GitHub CLI (`gh`) already authenticated with `gh auth login`
-- Optional AI CLI provider:
-  - `hermes`
-  - `codex`
-  - `claude`
-
-The `none` provider requires no AI CLI and is useful for smoke tests.
-
-## Installation
-
-Clone the repository and install it in editable mode:
+## 安装
 
 ```bash
 git clone https://github.com/ghosTM55/stars-to-kbs.git
@@ -93,35 +25,27 @@ source .venv/bin/activate
 pip install -e '.[dev]'
 ```
 
-Verify the CLI is available:
+要求：
 
-```bash
-stars-to-kbs --help
-```
+- Python `>= 3.11`
+- GitHub token，或已登录的 `gh` CLI
+- 可选 AI CLI：`hermes`、`codex`、`claude`
 
-If you use `gh` instead of a token environment variable, verify GitHub auth:
+## 配置
 
-```bash
-gh auth status
-```
-
-## Configuration
-
-Create a private config file:
+初始化配置：
 
 ```bash
 stars-to-kbs init
 ```
 
-By default this writes:
+默认配置文件：
 
 ```text
-$HOME/.config/stars-to-kbs/config.toml
+~/.config/stars-to-kbs/config.toml
 ```
 
-Edit that file before running the full pipeline.
-
-Example:
+示例：
 
 ```toml
 [github]
@@ -136,300 +60,113 @@ batch_size = 50
 language = "zh-CN"
 
 [kbs]
-path = "/absolute/path/to/your/Obsidian/Personal Notes"
+path = "/absolute/path/to/your/notes"
 
 [output]
 cache_dir = ".cache"
 work_dir = ".work"
 ```
 
-### Config reference
+说明：
 
-| Key | Meaning |
+| 配置项 | 说明 |
 | --- | --- |
-| `github.username` | GitHub user whose authenticated stars should be fetched. If empty, the authenticated user is detected. |
-| `github.token_env` | Environment variable containing a GitHub token. Defaults to `GH_TOKEN`. |
-| `github.include_readme` | Fetch README excerpts for each repo. Better summaries, but slower and more data sent to the agent. |
-| `github.max_repos` | Maximum repositories to fetch. `0` means all stars. Useful for tests. |
-| `agent.provider` | One of `hermes`, `codex`, `claude`, or `none`. |
-| `agent.batch_size` | Number of repositories per AI summarization batch. Use smaller values for stability. |
-| `agent.language` | Output language requested in the AI prompt. |
-| `kbs.path` | Absolute path to a directory or final Markdown file. If it is a directory, `GitHub Stars Index.md` is created inside it. |
-| `output.cache_dir` | Local cache directory for fetched stars. Ignored by git. |
-| `output.work_dir` | Local work directory for prompts and agent outputs. Ignored by git. |
+| `github.username` | GitHub 用户名；留空时使用当前认证用户 |
+| `github.token_env` | token 环境变量名，默认 `GH_TOKEN` |
+| `github.include_readme` | 是否拉取 README 摘要；更慢，也会发送更多文本给 AI CLI |
+| `github.max_repos` | 最多处理多少 repo；`0` 表示全部 |
+| `agent.provider` | `hermes` / `codex` / `claude` / `none` |
+| `agent.batch_size` | 每批交给 AI CLI 的 repo 数量 |
+| `agent.language` | 输出语言 |
+| `kbs.path` | KBS 目录或最终 Markdown 文件路径 |
 
-You can override the config path:
+## 使用
 
-```bash
-stars-to-kbs --config /path/to/config.toml run
-```
-
-## Quick start
-
-Run a small test first:
+先跑小样本：
 
 ```bash
 stars-to-kbs run --agent none --max-repos 20
-```
-
-Then run with your preferred AI CLI:
-
-```bash
 stars-to-kbs run --agent hermes --max-repos 20
 ```
 
-If the output looks right, run the full collection:
+全量运行：
 
 ```bash
 stars-to-kbs run --agent hermes
 ```
 
-## Commands
+失败后复用已有 batch 输出：
 
 ```bash
-stars-to-kbs init
+stars-to-kbs run --agent hermes --resume
+```
+
+## 命令
+
+```bash
 stars-to-kbs fetch
 stars-to-kbs summarize --agent hermes
 stars-to-kbs merge --agent hermes
 stars-to-kbs validate
 stars-to-kbs write-note
-stars-to-kbs run --agent hermes
 ```
 
-### `init`
-
-Creates a private config file from `config.example.toml`.
-
-```bash
-stars-to-kbs init
-stars-to-kbs init --force
-```
-
-### `fetch`
-
-Fetches GitHub starred repositories and writes them to the cache.
-
-```bash
-stars-to-kbs fetch
-stars-to-kbs fetch --max-repos 50
-stars-to-kbs fetch --with-readme
-```
-
-### `summarize`
-
-Reads cached repositories, splits them by `batch_size`, and calls the selected AI CLI.
-
-```bash
-stars-to-kbs summarize --agent hermes
-stars-to-kbs summarize --agent codex --batch-size 50
-stars-to-kbs summarize --agent none
-```
-
-Current output:
+完整流程：
 
 ```text
-.work/batch-summaries.md
+fetch -> summarize -> merge -> validate -> write-note
 ```
 
-Use `--resume` to reuse existing non-empty `.work/batch-XXX.summary.md` files.
+输出文件：
 
-### `merge`
+| 阶段 | 文件 |
+| --- | --- |
+| fetch | `.cache/starred.json` |
+| summarize | `.work/batch-summaries.md` |
+| merge | `.work/combined-summary.md` |
+| write-note | `<kbs.path>/GitHub Stars Index.md` |
 
-Merges batch summaries into one global taxonomy and writes the final summary.
+## 大量 Stars
 
-```bash
-stars-to-kbs merge --agent hermes
-stars-to-kbs merge --agent codex --resume
-```
+GitHub API 每页拉取 100 个 starred repositories。总结阶段按 `batch_size` 分批，再由 `merge` 阶段做全局分类合并。
 
-Current output:
-
-```text
-.work/combined-summary.md
-```
-
-### `validate`
-
-Checks that every fetched repository appears exactly once as a `#### owner/repo` heading in the merged summary.
-
-```bash
-stars-to-kbs validate
-```
-
-### `write-note`
-
-Writes the validated merged summary to the configured KBS note path.
-
-```bash
-stars-to-kbs write-note
-```
-
-### `run`
-
-Runs `fetch`, `summarize`, `merge`, `validate`, and `write-note` in sequence.
-
-```bash
-stars-to-kbs run --agent hermes
-stars-to-kbs run --agent none --max-repos 20
-```
-
-## Agent providers
-
-| Provider | Command pattern | Notes |
-| --- | --- | --- |
-| `hermes` | `hermes chat -Q -q <prompt>` | Uses Hermes quiet mode and captures stdout. |
-| `codex` | `codex exec --skip-git-repo-check -o <file> <prompt>` | Writes output to a file when supported. |
-| `claude` | `claude -p <prompt>` | Captures stdout. |
-| `none` | No subprocess | Deterministic fallback grouping for tests/offline smoke runs. |
-
-The project assumes these CLIs are already installed and authenticated. It does not install or configure them for you.
-
-## Output format
-
-The generated note includes frontmatter and a body like:
-
-```markdown
----
-title: GitHub Stars Index
-type: github-stars-index
-...
----
-
-# GitHub Stars Index
-
-## 概览
-
-## 分类目录
-
-### AI / Agents
-
-#### owner/repo
-- GitHub 链接：https://github.com/owner/repo
-- stars：12345
-- 一句话总结：...
-- 为什么值得关注：...
-- 适合用途：...
-```
-
-The intended per-repository fields are:
-
-- GitHub link;
-- stars;
-- one-sentence summary;
-- why it is worth watching;
-- suitable use cases.
-
-The prompt asks agents not to include language, `starred_at`, or tags in each item.
-
-## Large star collections
-
-GitHub stars are fetched with API pagination (`100` repositories per page). Summarization is batched locally according to `batch_size`.
-
-Guidance:
-
-- Start with `--max-repos 20` to verify config and output path.
-- Use `include_readme = false` for large collections unless you really need README context.
-- Prefer `batch_size = 50` to `100` for more stable output from CLI agents.
-- Use `--resume` to reuse existing non-empty batch or merged outputs after a failed run.
-- If a batch fails, inspect `.work/batch-XXX.prompt.md` and `.work/batch-XXX.summary.md`.
-- If validation fails, inspect `.work/combined-summary.md`; the validator prints missing, extra, and duplicate repo headings.
-
-## Troubleshooting
-
-### `Config already exists`
-
-`stars-to-kbs init` does not overwrite an existing config unless you pass:
-
-```bash
-stars-to-kbs init --force
-```
-
-### GitHub authentication fails
-
-Set a token:
-
-```bash
-export GH_TOKEN=...
-```
-
-Or authenticate `gh`:
-
-```bash
-gh auth login
-gh auth status
-```
-
-### Agent command not found
-
-Install and authenticate the selected CLI, or run a smoke test without AI:
-
-```bash
-stars-to-kbs run --agent none --max-repos 20
-```
-
-### Validation fails for many stars
-
-The final `validate` step compares fetched repository `full_name` values with `#### owner/repo` headings in `.work/combined-summary.md`. If it reports missing, duplicate, or unexpected repositories, rerun the merge step, lower `batch_size`, or inspect the merged file manually:
-
-```bash
-stars-to-kbs merge --agent hermes
-stars-to-kbs validate
-```
-
-### Generated note went to the wrong place
-
-Check:
+推荐：
 
 ```toml
-[kbs]
-path = "/absolute/path/to/your/notes"
+[agent]
+batch_size = 50
+
+[github]
+include_readme = false
 ```
 
-If `path` points to a directory, the file will be:
+`validate` 会检查最终 Markdown 是否包含所有 repo，并报告：
 
-```text
-GitHub Stars Index.md
-```
+- missing repositories
+- unexpected repositories
+- duplicate repositories
 
-inside that directory.
+## 隐私
 
-## Development
+默认不会把本地配置和输出提交到 Git。
 
-Install dev dependencies:
+不要提交：
 
-```bash
-pip install -e '.[dev]'
-```
+- `.env`
+- `config.toml`
+- `.cache/`
+- `.work/`
+- `output/`
 
-Run tests and lint:
+注意：本项目不直接保存 LLM API Key，但使用 `hermes` / `codex` / `claude` 时，repo 元数据仍可能发送到对应工具的后端。
+
+## 开发
 
 ```bash
 python -m pytest -q
 ruff check .
-```
-
-Build:
-
-```bash
 python -m build
 ```
-
-Before publishing changes, verify that no private data is included:
-
-```bash
-git status --short
-git diff --cached
-```
-
-## Roadmap
-
-High-priority improvements:
-
-- Add hierarchical merge for very large collections when the final merge prompt becomes too large.
-- Improve agent prompt-size estimation and automatic batch-size recommendations.
-- Add richer retry/backoff behavior for transient GitHub/API/network failures.
-- Add optional filters such as archived repositories, forks, and minimum star count.
-- Package and publish releases for easier installation.
 
 ## License
 
