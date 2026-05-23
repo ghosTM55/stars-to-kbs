@@ -33,12 +33,19 @@ class AgentRunner:
         lines = [line for line in text.splitlines() if not line.startswith("session_id:")]
         return "\n".join(lines).strip()
 
-    def summarize(self, prompt: str, batch_name: str, repos: list[Repository]) -> str:
+    def summarize(self, prompt: str, batch_name: str, repos: list[Repository], *, use_cache: bool = False) -> str:
+        """Run one agent prompt, optionally reusing an existing non-empty output file."""
         if self.provider == "none":
             return render_fallback_summary(repos)
 
         prompt_path = self.work_dir / f"{batch_name}.prompt.md"
         output_path = self.work_dir / f"{batch_name}.summary.md"
+
+        if use_cache and output_path.exists():
+            cached = output_path.read_text()
+            if cached.strip():
+                return self.clean_output(cached)
+
         prompt_path.write_text(prompt)
 
         cmd = self.build_command(prompt, output_path)
@@ -47,6 +54,11 @@ class AgentRunner:
             stderr = result.stderr.strip() or result.stdout.strip()
             raise RuntimeError(f"{self.provider} failed for {batch_name}: {stderr[-2000:]}")
 
-        if output_path.exists() and output_path.read_text().strip():
-            return self.clean_output(output_path.read_text())
-        return self.clean_output(result.stdout or "")
+        output_text = output_path.read_text() if output_path.exists() else ""
+        if output_text.strip():
+            return self.clean_output(output_text)
+
+        cleaned = self.clean_output(result.stdout or "")
+        if cleaned:
+            output_path.write_text(cleaned)
+        return cleaned

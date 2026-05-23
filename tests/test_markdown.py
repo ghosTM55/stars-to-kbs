@@ -1,6 +1,11 @@
 from datetime import datetime, timezone
 
-from stars_to_kbs.markdown import render_fallback_summary, render_kbs_note, render_prompt_payload
+from stars_to_kbs.markdown import (
+    render_fallback_summary,
+    render_kbs_note,
+    render_merge_prompt_payload,
+    render_prompt_payload,
+)
 from stars_to_kbs.models import Repository, StarsSummary
 
 
@@ -34,13 +39,20 @@ def test_render_prompt_payload_does_not_request_unwanted_output_fields():
     assert "每个项目只包含：GitHub 链接、stars、一句话总结、为什么值得关注、适合用途" in payload
 
 
+def test_render_merge_prompt_requires_global_taxonomy_and_exact_repo_names():
+    payload = render_merge_prompt_payload(["#### owner/repo\n- GitHub 链接：x"], [sample_repo()], language="zh-CN")
+    assert "合并成一个全局统一的分类目录" in payload
+    assert "每个 expected repository 必须且只能出现一次" in payload
+    assert "owner/repo" in payload
+
+
 def test_fallback_summary_omits_language_starred_and_tags():
     output = render_fallback_summary([sample_repo()])
     assert "- Language:" not in output
     assert "- Starred at:" not in output
     assert "- 标签：" not in output
-    assert "- GitHub:" in output
-    assert "- Stars:" in output
+    assert "- GitHub 链接：" in output
+    assert "- stars：" in output
 
 
 def test_render_kbs_note_contains_frontmatter_and_repo_links():
@@ -49,7 +61,7 @@ def test_render_kbs_note_contains_frontmatter_and_repo_links():
         github_user="alice",
         agent_provider="none",
         total_repos=1,
-        body="## 分类目录\n\n### CLI Tools\n\n#### owner/repo\n- GitHub: https://github.com/owner/repo\n",
+        body="## 分类目录\n\n### CLI Tools\n\n#### owner/repo\n- GitHub 链接：https://github.com/owner/repo\n",
     )
     note = render_kbs_note(summary)
     assert note.startswith("---\n")

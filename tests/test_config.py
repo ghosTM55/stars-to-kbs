@@ -38,6 +38,34 @@ path = "/tmp/kbs"
     assert str(config.kbs.note_path) == "/tmp/kbs/GitHub Stars Index.md"
 
 
+def test_load_config_rejects_invalid_batch_size(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[agent]
+batch_size = 0
+""".strip())
+    try:
+        Config.load(config_file)
+    except ValueError as exc:
+        assert "batch_size" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
+def test_load_config_rejects_unknown_key(tmp_path):
+    config_file = tmp_path / "config.toml"
+    config_file.write_text("""
+[agent]
+batch_siz = 20
+""".strip())
+    try:
+        Config.load(config_file)
+    except ValueError as exc:
+        assert "Unknown config key" in str(exc)
+    else:
+        raise AssertionError("expected ValueError")
+
+
 def test_default_config_path_uses_home_config(monkeypatch, tmp_path):
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     assert default_config_path() == tmp_path / ".config" / "stars-to-kbs" / "config.toml"

@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-import json
 from collections import defaultdict
 from datetime import timezone
+import json
 
 from .models import Repository, StarsSummary
 
 
 def render_prompt_payload(repos: list[Repository], language: str = "zh-CN") -> str:
-    """Create a compact prompt asking the selected AI CLI for Markdown output."""
+    """Create a compact prompt asking the selected AI CLI for one batch of Markdown output."""
     repo_payload = [repo.to_dict() for repo in repos]
     return f"""你是一个帮助整理个人 Knowledge Base 的技术研究助理。请使用 {language} 输出。
 
@@ -30,6 +30,41 @@ Repositories JSON:
 ```json
 {json.dumps(repo_payload, ensure_ascii=False, indent=2)}
 ```
+"""
+
+
+def render_merge_prompt_payload(batch_summaries: list[str], repos: list[Repository], language: str = "zh-CN") -> str:
+    """Create a prompt that merges batch summaries into one global taxonomy."""
+    expected_names = [repo.full_name for repo in repos]
+    summaries = []
+    for index, summary in enumerate(batch_summaries, start=1):
+        summaries.append(f"### Batch {index}\n\n{summary.strip()}")
+    summaries_text = "\n\n---\n\n".join(summaries)
+    return f"""你是一个帮助整理个人 Knowledge Base 的技术研究助理。请使用 {language} 输出。
+
+任务：下面是多个 batch 生成的 GitHub Stars 分类笔记。请把它们合并成一个全局统一的分类目录。
+
+全局合并要求：
+- 只输出 Markdown，不要输出解释性前言。
+- 只保留一个二级标题 `## 分类目录`。
+- 合并重复或相近分类，形成统一 taxonomy。
+- 同类项目必须放到同一个三级分类下，不要因为 batch 来源不同而拆散。
+- 每个项目用四级标题 `#### owner/repo`。
+- 四级标题中的 `owner/repo` 必须逐字使用 Expected repository full_name list 中的名字，不要修正、翻译、缩写或猜测仓库名。
+- 每个 expected repository 必须且只能出现一次。
+- 不要加入 expected list 之外的仓库。
+- 每个项目只包含：GitHub 链接、stars、一句话总结、为什么值得关注、适合用途。
+- 不要在每个项目条目里输出语言、starred_at 或标签信息。
+- 如果原 batch 信息不足，请保留项目并写“信息不足”，不要删除。
+
+Expected repository full_name list:
+```json
+{json.dumps(expected_names, ensure_ascii=False, indent=2)}
+```
+
+Batch summaries:
+
+{summaries_text}
 """
 
 
@@ -79,8 +114,8 @@ def render_fallback_summary(repos: list[Repository]) -> str:
             desc = repo.description or "信息不足"
             lines += [
                 f"#### {repo.full_name}",
-                f"- GitHub: {repo.html_url}",
-                f"- Stars: {repo.stars:,}",
+                f"- GitHub 链接：{repo.html_url}",
+                f"- stars：{repo.stars:,}",
                 f"- 一句话总结：{desc}",
                 "- 为什么值得关注：需要 AI 进一步归纳；当前为无 AI fallback 输出。",
                 "- 适合用途：待人工确认。",

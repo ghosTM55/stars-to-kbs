@@ -4,10 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 import tomllib
 
 DEFAULT_NOTE_NAME = "GitHub Stars Index.md"
 APP_CONFIG_DIR = "stars-to-kbs"
+SUPPORTED_AGENT_NAMES = {"codex", "claude", "hermes", "none"}
 
 
 def default_config_path() -> Path:
@@ -21,6 +23,16 @@ def resolve_kbs_note_path(path_value: str | Path) -> Path:
     if path.suffix.lower() == ".md":
         return path
     return path / DEFAULT_NOTE_NAME
+
+
+def _section(data: dict[str, Any], name: str, allowed: set[str]) -> dict[str, Any]:
+    section_data = data.get(name, {})
+    if not isinstance(section_data, dict):
+        raise ValueError(f"Config section [{name}] must be a table")
+    unknown = sorted(set(section_data) - allowed)
+    if unknown:
+        raise ValueError(f"Unknown config key(s) in [{name}]: {', '.join(unknown)}")
+    return section_data
 
 
 @dataclass(slots=True)
@@ -62,26 +74,44 @@ class Config:
 
     @classmethod
     def default(cls) -> "Config":
-        return cls(GitHubConfig(), AgentConfig(), KbsConfig(), OutputConfig())
+        config = cls(GitHubConfig(), AgentConfig(), KbsConfig(), OutputConfig())
+        config.validate()
+        return config
 
     @classmethod
     def load(cls, path: str | Path | None = None) -> "Config":
         config_path = Path(path) if path is not None else default_config_path()
-        data: dict = {}
+        data: dict[str, Any] = {}
         if config_path.exists():
             data = tomllib.loads(config_path.read_text())
 
-        github_data = data.get("github", {})
-        agent_data = data.get("agent", {})
-        kbs_data = data.get("kbs", {})
-        output_data = data.get("output", {})
+        top_unknown = sorted(set(data) - {"github", "agent", "kbs", "output"})
+        if top_unknown:
+            raise ValueError(f"Unknown config section(s): {', '.join(top_unknown)}")
 
-        return cls(
-            github=GitHubConfig(**{k: v for k, v in github_data.items() if k in GitHubConfig.__dataclass_fields__}),
-            agent=AgentConfig(**{k: v for k, v in agent_data.items() if k in AgentConfig.__dataclass_fields__}),
-            kbs=KbsConfig(**{k: v for k, v in kbs_data.items() if k in KbsConfig.__dataclass_fields__}),
+        github_data = _section(data, "github", set(GitHubConfig.__dataclass_fields__))
+        agent_data = _section(data, "agent", set(AgentConfig.__dataclass_fields__))
+        kbs_data = _section(data, "kbs", set(KbsConfig.__dataclass_fields__))
+        output_data = _section(data, "output", {"cache_dir", "work_dir"})
+
+        config = cls(
+            github=GitHubConfig(**github_data),
+            agent=AgentConfig(**agent_data),
+            kbs=KbsConfig(**kbs_data),
             output=OutputConfig(
                 cache_dir=Path(output_data.get("cache_dir", ".cache")),
                 work_dir=Path(output_data.get("work_dir", ".work")),
             ),
         )
+        config.validate()
+        return config
+
+    def validate(self) -> None:
+        if self.github.max_repos < 0:
+            raise ValueError("github.max_repos must be >= 0")
+        if self.agent.batch_size <= 0:
+            raise ValueError("agent.batch_size must be > 0")
+        provider = self.agent.provider.lower()
+        if provider not in SUPPORTED_AGENT_NAMES:
+            raise ValueError(f"agent.provider must be one of: {', '.join(sorted(SUPPORTED_AGENT_NAMES))}")
+        self.agent.provider = provider

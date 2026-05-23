@@ -27,6 +27,12 @@ def test_hermes_output_drops_session_id(tmp_path):
     assert runner.clean_output("session_id: 123\n## 分类目录") == "## 分类目录"
 
 
+def test_resume_reuses_existing_summary_file(tmp_path):
+    runner = AgentRunner(provider="hermes", work_dir=tmp_path)
+    (tmp_path / "batch.summary.md").write_text("session_id: cached\n## 分类目录\n")
+    assert runner.summarize("ignored", "batch", [], use_cache=True) == "## 分类目录"
+
+
 def test_unsupported_agent_raises(tmp_path):
     runner = AgentRunner(provider="bad", work_dir=tmp_path)
     try:
