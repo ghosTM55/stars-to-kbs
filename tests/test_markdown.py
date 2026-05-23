@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from stars_to_kbs.markdown import render_kbs_note, render_prompt_payload
+from stars_to_kbs.markdown import render_fallback_summary, render_kbs_note, render_prompt_payload
 from stars_to_kbs.models import Repository, StarsSummary
 
 
@@ -23,6 +23,24 @@ def test_render_prompt_payload_contains_repo_metadata():
     assert "owner/repo" in payload
     assert "A useful tool" in payload
     assert "zh-CN" in payload
+
+
+def test_render_prompt_payload_does_not_request_unwanted_output_fields():
+    payload = render_prompt_payload([sample_repo()], language="zh-CN")
+    assert "语言、stars、starred_at" not in payload
+    assert "标签。" not in payload
+    assert "标签信息" in payload
+    assert "必须逐字使用 JSON 里的 `full_name`" in payload
+    assert "每个项目只包含：GitHub 链接、stars、一句话总结、为什么值得关注、适合用途" in payload
+
+
+def test_fallback_summary_omits_language_starred_and_tags():
+    output = render_fallback_summary([sample_repo()])
+    assert "- Language:" not in output
+    assert "- Starred at:" not in output
+    assert "- 标签：" not in output
+    assert "- GitHub:" in output
+    assert "- Stars:" in output
 
 
 def test_render_kbs_note_contains_frontmatter_and_repo_links():

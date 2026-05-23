@@ -21,7 +21,9 @@ def render_prompt_payload(repos: list[Repository], language: str = "zh-CN") -> s
 - 使用二级标题 `## 分类目录` 开始。
 - 每个分类用三级标题，例如 `### AI / Agents`。
 - 每个项目用四级标题 `#### owner/repo`。
-- 每个项目包含：GitHub 链接、语言、stars、starred_at、一句话总结、为什么值得关注、适合用途、标签。
+- 四级标题中的 `owner/repo` 必须逐字使用 JSON 里的 `full_name`，不要修正、翻译、缩写或猜测仓库名。
+- 每个项目只包含：GitHub 链接、stars、一句话总结、为什么值得关注、适合用途。
+- 不要在每个项目条目里输出语言、starred_at 或标签信息。
 - 不要编造仓库不存在的信息；如果元数据不足，请明确写“信息不足”。
 
 Repositories JSON:
@@ -75,17 +77,13 @@ def render_fallback_summary(repos: list[Repository]) -> str:
         lines += [f"### {category}", ""]
         for repo in sorted(items, key=lambda r: r.stars, reverse=True):
             desc = repo.description or "信息不足"
-            tags = ", ".join(repo.topics[:6]) if repo.topics else "信息不足"
             lines += [
                 f"#### {repo.full_name}",
                 f"- GitHub: {repo.html_url}",
-                f"- Language: {repo.language or '信息不足'}",
                 f"- Stars: {repo.stars:,}",
-                f"- Starred at: {repo.starred_at or '信息不足'}",
                 f"- 一句话总结：{desc}",
                 "- 为什么值得关注：需要 AI 进一步归纳；当前为无 AI fallback 输出。",
                 "- 适合用途：待人工确认。",
-                f"- 标签：{tags}",
                 "",
             ]
     return "\n".join(lines)
