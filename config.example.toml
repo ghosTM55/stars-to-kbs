@@ -1,0 +1,27 @@
+[github]
+# GitHub username whose authenticated stars should be fetched.
+username = "YOUR_GITHUB_USERNAME"
+
+# Environment variable containing a GitHub token. If unset, the CLI can fall back to `gh auth token`.
+token_env = "GH_TOKEN"
+
+# Set to true to fetch README excerpts. This is slower and sends more repo text to the selected agent.
+include_readme = false
+
+# 0 means all starred repositories.
+max_repos = 0
+
+[agent]
+# Supported: codex, claude, hermes, none
+provider = "codex"
+batch_size = 20
+language = "zh-CN"
+
+[kbs]
+# Absolute path to a directory or a final markdown file in your personal KBS.
+# If this points to a directory, the tool writes `GitHub Stars Index.md` inside it.
+path = "/absolute/path/to/your/Obsidian/Personal Notes"
+
+[output]
+cache_dir = ".cache"
+work_dir = ".work"

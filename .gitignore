@@ -1,0 +1,20 @@
+.DS_Store
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+dist/
+*.egg-info/
+
+# Local secrets / private paths
+.env
+config.toml
+*.local.toml
+
+# Runtime data - do not publish personal stars, prompts, or generated KBS notes
+.cache/
+.work/
+output/
+agent-output/
