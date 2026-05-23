@@ -46,3 +46,12 @@ work_dir = "{tmp_path / 'work'}"
     assert "#### owner/repo2" in text
     assert (tmp_path / "work" / "batch-summaries.md").exists()
     assert (tmp_path / "work" / "combined-summary.md").exists()
+
+
+def test_init_writes_packaged_config_template(tmp_path):
+    config = tmp_path / "config.toml"
+    code = main(["--config", str(config), "init"])
+    assert code == 0
+    text = config.read_text()
+    assert "[github]" in text
+    assert "timeout_seconds" in text

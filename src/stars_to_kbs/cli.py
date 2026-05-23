@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import argparse
-import shutil
+from importlib.resources import files
 from pathlib import Path
 
 from .agent_runner import AgentRunner, SUPPORTED_AGENTS
@@ -29,6 +29,10 @@ def batch_summaries_path(config: Config) -> Path:
     return config.output.work_dir / "batch-summaries.md"
 
 
+def batch_summary_files(config: Config) -> list[Path]:
+    return sorted(config.output.work_dir.glob("batch-*.summary.md"))
+
+
 def summary_path(config: Config) -> Path:
     return config.output.work_dir / "combined-summary.md"
 
@@ -39,12 +43,8 @@ def cmd_init(args: argparse.Namespace) -> int:
         print(f"Config already exists: {target}")
         return 0
     target.parent.mkdir(parents=True, exist_ok=True)
-    source = Path(__file__).resolve().parents[2] / "config.example.toml"
-    if not source.exists():
-        source = Path("config.example.toml")
-    if not source.exists():
-        raise FileNotFoundError("Could not find config.example.toml")
-    shutil.copyfile(source, target)
+    template = files("stars_to_kbs").joinpath("templates/config.example.toml").read_text()
+    target.write_text(template)
     print(f"Created {target}. Edit it before running.")
     return 0
 
@@ -66,7 +66,7 @@ def cmd_summarize(args: argparse.Namespace) -> int:
     repos = load_repos(Path(args.input) if args.input else cache_path(config))
     provider = args.agent or config.agent.provider
     batch_size = args.batch_size or config.agent.batch_size
-    runner = AgentRunner(provider, config.output.work_dir)
+    runner = AgentRunner(provider, config.output.work_dir, timeout_seconds=config.agent.timeout_seconds)
 
     outputs: list[str] = []
     for start in range(0, len(repos), batch_size):
@@ -87,9 +87,14 @@ def cmd_merge(args: argparse.Namespace) -> int:
     config = Config.load(args.config)
     repos = load_repos(Path(args.input) if args.input else cache_path(config))
     provider = args.agent or config.agent.provider
-    batch_body = Path(args.batch_summaries or batch_summaries_path(config)).read_text()
-    batch_outputs = [part.strip() for part in batch_body.split("\n\n---\n\n") if part.strip()]
-    runner = AgentRunner(provider, config.output.work_dir)
+    if args.batch_summaries:
+        batch_paths = [Path(args.batch_summaries)]
+    else:
+        batch_paths = batch_summary_files(config)
+        if not batch_paths and batch_summaries_path(config).exists():
+            batch_paths = [batch_summaries_path(config)]
+    batch_outputs = [path.read_text().strip() for path in batch_paths if path.exists() and path.read_text().strip()]
+    runner = AgentRunner(provider, config.output.work_dir, timeout_seconds=config.agent.timeout_seconds)
 
     if provider == "none":
         merged = runner.summarize("", "merged", repos, use_cache=args.resume)

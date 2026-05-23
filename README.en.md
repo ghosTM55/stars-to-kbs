@@ -58,6 +58,7 @@ max_repos = 0
 provider = "hermes"
 batch_size = 50
 language = "zh-CN"
+timeout_seconds = 900
 
 [kbs]
 path = "/absolute/path/to/your/notes"
@@ -76,6 +77,7 @@ work_dir = ".work"
 | `agent.provider` | `hermes` / `codex` / `claude` / `none` |
 | `agent.batch_size` | repositories per summarization batch |
 | `agent.language` | requested output language |
+| `agent.timeout_seconds` | max seconds for each AI CLI call before failing |
 | `kbs.path` | KBS directory or final Markdown path |
 
 ## Usage
@@ -98,6 +100,50 @@ Resume from existing batch outputs:
 ```bash
 stars-to-kbs run --agent hermes --resume
 ```
+
+## Using it from AI tools
+
+This project does not integrate OpenAI or Anthropic API keys directly. Treat it as a local CLI that an already-authenticated AI tool can run:
+
+```bash
+stars-to-kbs run --agent hermes
+stars-to-kbs run --agent codex
+stars-to-kbs run --agent claude
+```
+
+Prompt template for Hermes, Codex, or Claude Code:
+
+```text
+Go to ~/Projects/stars-to-kbs and run stars-to-kbs run --agent hermes --resume.
+If validation fails, stop and report the validate output. Do not edit config files or KBS paths.
+```
+
+Recommendations:
+
+- Use `hermes` for routine automation and cron jobs.
+- For large star lists, use `batch_size = 50` and `include_readme = false`.
+- `--resume` checks batch manifests before reusing cached outputs.
+- Keep the KBS note as a clean index. Do not append “updated document” messages or changelogs; when stars change, only let the repository entries appear in the index.
+
+## Scheduled runs
+
+GitHub Stars do not need high-frequency processing. Run every two weeks or monthly; monthly is usually enough for a personal KBS.
+
+Hermes cron example:
+
+```bash
+hermes cron create '0 9 1 * *' \
+  --name 'Monthly GitHub Stars to KBS' \
+  --script ~/.hermes/scripts/stars_to_kbs_monthly.sh \
+  --no-agent
+```
+
+Recommended script behavior:
+
+- Stay silent on success; do not send “document updated” messages.
+- On failure, print a short error and log path.
+- Run `stars-to-kbs run --agent hermes --resume`.
+- Keep the note as the final index only; do not append update logs.
 
 ## Commands
 

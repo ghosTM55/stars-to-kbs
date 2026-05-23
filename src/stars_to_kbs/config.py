@@ -48,6 +48,7 @@ class AgentConfig:
     provider: str = "codex"
     batch_size: int = 20
     language: str = "zh-CN"
+    timeout_seconds: int = 900
 
 
 @dataclass(slots=True)
@@ -111,6 +112,8 @@ class Config:
             raise ValueError("github.max_repos must be >= 0")
         if self.agent.batch_size <= 0:
             raise ValueError("agent.batch_size must be > 0")
+        if self.agent.timeout_seconds <= 0:
+            raise ValueError("agent.timeout_seconds must be > 0")
         provider = self.agent.provider.lower()
         if provider not in SUPPORTED_AGENT_NAMES:
             raise ValueError(f"agent.provider must be one of: {', '.join(sorted(SUPPORTED_AGENT_NAMES))}")

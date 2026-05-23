@@ -58,6 +58,7 @@ max_repos = 0
 provider = "hermes"
 batch_size = 50
 language = "zh-CN"
+timeout_seconds = 900
 
 [kbs]
 path = "/absolute/path/to/your/notes"
@@ -78,6 +79,7 @@ work_dir = ".work"
 | `agent.provider` | `hermes` / `codex` / `claude` / `none` |
 | `agent.batch_size` | 每批交给 AI CLI 的 repo 数量 |
 | `agent.language` | 输出语言 |
+| `agent.timeout_seconds` | 每次 AI CLI 调用的最长等待时间，超时会失败退出 |
 | `kbs.path` | KBS 目录或最终 Markdown 文件路径 |
 
 ## 使用
@@ -100,6 +102,50 @@ stars-to-kbs run --agent hermes
 ```bash
 stars-to-kbs run --agent hermes --resume
 ```
+
+## 给 AI 工具使用
+
+这个项目本身不直接接入 OpenAI / Anthropic API。推荐把它作为一个本地 CLI 交给已登录的 AI 工具调用：
+
+```bash
+stars-to-kbs run --agent hermes
+stars-to-kbs run --agent codex
+stars-to-kbs run --agent claude
+```
+
+如果你想让 Hermes、Codex 或 Claude Code 代为运行，可以给它这样的指令：
+
+```text
+进入 ~/Projects/stars-to-kbs，运行 stars-to-kbs run --agent hermes --resume。
+如果校验失败，停止并报告 validate 输出；不要修改配置文件或 KBS 路径。
+```
+
+建议：
+
+- 日常自动化用 `hermes`，因为它适合本机任务编排和 cron。
+- 大批量 stars 推荐 `batch_size = 50`，`include_readme = false`。
+- `--resume` 会基于 batch manifest 校验缓存，避免复用不匹配的旧输出。
+- 最终笔记保持为干净的索引文档，不写“本次更新说明”或 changelog；如果 stars 发生变化，只让新条目进入索引。
+
+## 定时运行
+
+GitHub Stars 不需要高频整理。推荐两周或一个月运行一次；个人 KBS 场景通常一个月一次就够。
+
+Hermes cron 示例：
+
+```bash
+hermes cron create '0 9 1 * *' \
+  --name 'Monthly GitHub Stars to KBS' \
+  --script ~/.hermes/scripts/stars_to_kbs_monthly.sh \
+  --no-agent
+```
+
+推荐脚本行为：
+
+- 成功时静默，不发送“文档已更新”类消息。
+- 失败时输出简短错误和日志路径。
+- 运行命令使用 `stars-to-kbs run --agent hermes --resume`。
+- 笔记只保持最终索引内容，不追加更新日志。
 
 ## 命令
 
