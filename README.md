@@ -12,7 +12,7 @@ This project is inspired by [`amirhmoradi/starred`](https://github.com/amirhmora
 
 Committed files are safe for a public repository. Private material is ignored by git:
 
-- `config.toml` for your local paths and preferences
+- `$HOME/.config/stars-to-kbs/config.toml` for your local paths and preferences
 - `.env` for tokens
 - `.cache/` for fetched GitHub stars
 - `.work/` for prompts and agent outputs
@@ -26,12 +26,20 @@ Important: using `codex`, `claude`, or `hermes` still sends selected repository 
 python3.14 -m venv .venv
 source .venv/bin/activate
 pip install -e '.[dev]'
-cp config.example.toml config.toml
-# edit config.toml
+stars-to-kbs init
+# edit ~/.config/stars-to-kbs/config.toml
 stars-to-kbs run --agent hermes --max-repos 20
 ```
 
 If `GH_TOKEN` is not set, the tool tries `gh auth token`.
+
+By default, the config file is read from:
+
+```text
+$HOME/.config/stars-to-kbs/config.toml
+```
+
+You can override it with `--config /path/to/config.toml`.
 
 ## Commands
 
@@ -45,7 +53,7 @@ stars-to-kbs run --agent hermes --max-repos 20
 
 ## Agent providers
 
-- `hermes`: `hermes chat -q <prompt>`
+- `hermes`: `hermes chat -Q -q <prompt>`
 - `codex`: `codex exec --skip-git-repo-check -o <file> <prompt>`
 - `claude`: `claude -p <prompt>`
 - `none`: deterministic fallback grouping without AI, useful for testing

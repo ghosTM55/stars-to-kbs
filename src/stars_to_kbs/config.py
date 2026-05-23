@@ -7,6 +7,12 @@ from pathlib import Path
 import tomllib
 
 DEFAULT_NOTE_NAME = "GitHub Stars Index.md"
+APP_CONFIG_DIR = "stars-to-kbs"
+
+
+def default_config_path() -> Path:
+    """Return the default per-user config file path under $HOME/.config."""
+    return Path.home() / ".config" / APP_CONFIG_DIR / "config.toml"
 
 
 def resolve_kbs_note_path(path_value: str | Path) -> Path:
@@ -59,8 +65,8 @@ class Config:
         return cls(GitHubConfig(), AgentConfig(), KbsConfig(), OutputConfig())
 
     @classmethod
-    def load(cls, path: str | Path = "config.toml") -> "Config":
-        config_path = Path(path)
+    def load(cls, path: str | Path | None = None) -> "Config":
+        config_path = Path(path) if path is not None else default_config_path()
         data: dict = {}
         if config_path.exists():
             data = tomllib.loads(config_path.read_text())

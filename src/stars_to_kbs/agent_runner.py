@@ -23,10 +23,15 @@ class AgentRunner:
         if self.provider == "claude":
             return ["claude", "-p", prompt]
         if self.provider == "hermes":
-            return ["hermes", "chat", "-q", prompt]
+            return ["hermes", "chat", "-Q", "-q", prompt]
         if self.provider == "none":
             return []
         raise ValueError(f"Unsupported agent provider: {self.provider}. Supported: {', '.join(sorted(SUPPORTED_AGENTS))}")
+
+    def clean_output(self, text: str) -> str:
+        """Remove CLI bookkeeping lines from captured agent stdout."""
+        lines = [line for line in text.splitlines() if not line.startswith("session_id:")]
+        return "\n".join(lines).strip()
 
     def summarize(self, prompt: str, batch_name: str, repos: list[Repository]) -> str:
         if self.provider == "none":
@@ -43,5 +48,5 @@ class AgentRunner:
             raise RuntimeError(f"{self.provider} failed for {batch_name}: {stderr[-2000:]}")
 
         if output_path.exists() and output_path.read_text().strip():
-            return output_path.read_text().strip()
-        return (result.stdout or "").strip()
+            return self.clean_output(output_path.read_text())
+        return self.clean_output(result.stdout or "")

@@ -15,6 +15,18 @@ def test_codex_command_uses_output_file(tmp_path):
     assert "-o" in cmd
 
 
+def test_hermes_command_uses_quiet_mode(tmp_path):
+    runner = AgentRunner(provider="hermes", work_dir=tmp_path)
+    cmd = runner.build_command("hello", tmp_path / "out.md")
+    assert cmd[:2] == ["hermes", "chat"]
+    assert "-Q" in cmd
+
+
+def test_hermes_output_drops_session_id(tmp_path):
+    runner = AgentRunner(provider="hermes", work_dir=tmp_path)
+    assert runner.clean_output("session_id: 123\n## 分类目录") == "## 分类目录"
+
+
 def test_unsupported_agent_raises(tmp_path):
     runner = AgentRunner(provider="bad", work_dir=tmp_path)
     try:

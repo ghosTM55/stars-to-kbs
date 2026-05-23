@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from stars_to_kbs.config import Config, resolve_kbs_note_path
+from stars_to_kbs.config import Config, default_config_path, resolve_kbs_note_path
 
 
 def test_example_config_does_not_contain_private_paths_or_tokens():
@@ -36,3 +36,8 @@ path = "/tmp/kbs"
     assert config.agent.provider == "hermes"
     assert config.agent.batch_size == 5
     assert str(config.kbs.note_path) == "/tmp/kbs/GitHub Stars Index.md"
+
+
+def test_default_config_path_uses_home_config(monkeypatch, tmp_path):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    assert default_config_path() == tmp_path / ".config" / "stars-to-kbs" / "config.toml"

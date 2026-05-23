@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 from .agent_runner import AgentRunner, SUPPORTED_AGENTS
-from .config import Config
+from .config import Config, default_config_path
 from .github_api import GitHubStarsClient, load_repos, save_repos
 from .markdown import render_kbs_note, render_prompt_payload
 from .models import StarsSummary
@@ -26,6 +26,7 @@ def cmd_init(args: argparse.Namespace) -> int:
     if target.exists() and not args.force:
         print(f"Config already exists: {target}")
         return 0
+    target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile("config.example.toml", target)
     print(f"Created {target}. Edit it before running.")
     return 0
@@ -94,7 +95,11 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="stars-to-kbs")
-    parser.add_argument("--config", default="config.toml", help="Path to local TOML config")
+    parser.add_argument(
+        "--config",
+        default=str(default_config_path()),
+        help="Path to TOML config (default: ~/.config/stars-to-kbs/config.toml)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init", help="Create local config.toml from config.example.toml")
