@@ -215,4 +215,7 @@ python -m build
 
 ## License
 
-MIT
+This project is source-available for non-commercial use under the
+PolyForm Noncommercial License 1.0.0.
+
+Commercial use is not permitted without separate written permission.
